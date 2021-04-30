@@ -1,0 +1,9 @@
+/* Add your custom extension styling here */
+
+ .arbtt-stats-progress-bar {
+    height: 5px;
+    padding: 0 5px;    
+    background-color: rgb(241, 78, 13);
+    border: 1px;
+} 
+

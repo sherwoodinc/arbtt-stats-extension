@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.arbttstats" path="/org/gnome/shell/extensions/arbttstats/">
+    <!-- See also: https://developer.gnome.org/glib/stable/gvariant-format-strings.html -->
+    <key name="log-file-path" type="s">
+      <default>"~/arbtt/capture.log"</default>
+      </key>
+    <key name="categorize-file-path" type="s">
+      <default>"~/arbtt/categorize.cfg"</default>
+      </key>
+    <key name="ignore-inactive" type="b">
+      <default>true</default>
+    </key>
+    <key name="strip-category-names" type="b">
+      <default>true</default>
+    </key>
+    <key name="excluded-categories" type="s">
+      <default>""</default>
+    </key>
+    <key name="included-categories" type="s">
+      <default>""</default>
+    </key>
+    <key name="stats-interval" type="s">
+      <choices>
+        <choice value="current day" />
+        <choice value="current week" />
+        <choice value="current month" />
+        </choices>
+      <default>"current day"</default>
+    </key>
+    <key name="week-start-day" type="s">
+      <choices>
+        <choice value="Monday" />
+        <choice value="Sunday" />
+        </choices>           
+      <default>'Monday'</default>
+    </key>
+    <key name="refresh-interval-seconds" type="i">
+      <default>60</default>
+    </key>
+  </schema>
+</schemalist>
