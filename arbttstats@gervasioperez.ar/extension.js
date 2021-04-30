@@ -225,12 +225,10 @@ class Extension {
           else         
           settings.excluded_categories = [];
         this._indicator.refresh(settings);
-        this._interval = settings.interval;
         if (this.timer) {
             GLib.source_remove(this.timer);
-            this.timer  = GLib.timeout_add(GLib.PRIORITY_DEFAULT, this._interval*1000, imports.lang.bind(this, function() { this._update(); return true;}));
         }
-        
+            this.timer  = GLib.timeout_add(GLib.PRIORITY_DEFAULT, settings.interval*1000, imports.lang.bind(this, function() { this._update(); return true;}));
       } catch (e) {
         // 
         log(e);
