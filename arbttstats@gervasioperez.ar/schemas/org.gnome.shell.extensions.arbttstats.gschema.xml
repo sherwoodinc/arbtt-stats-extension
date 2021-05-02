@@ -3,10 +3,10 @@
   <schema id="org.gnome.shell.extensions.arbttstats" path="/org/gnome/shell/extensions/arbttstats/">
     <!-- See also: https://developer.gnome.org/glib/stable/gvariant-format-strings.html -->
     <key name="log-file-path" type="s">
-      <default>"~/arbtt/capture.log"</default>
+      <default>""</default>
       </key>
     <key name="categorize-file-path" type="s">
-      <default>"~/arbtt/categorize.cfg"</default>
+      <default>""</default>
       </key>
     <key name="ignore-inactive" type="b">
       <default>true</default>
