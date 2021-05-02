@@ -3,6 +3,6 @@
   "description": "Show simple arbtt stats on the panel",
   "uuid": "arbttstats@gervasioperez.ar",
   "shell-version": [
-    "3.38"
+    "3.38", "40"
   ]
 }
