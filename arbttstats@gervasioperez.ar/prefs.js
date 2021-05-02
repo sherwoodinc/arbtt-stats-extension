@@ -162,8 +162,10 @@ function buildPrefsWidget() {
 
     // Create a parent widget that we'll return from this function
     let prefsWidget = new Gtk.Grid({
+        border_width: 12,
         column_spacing: 12,
         row_spacing: 12,
+        hexpand: true,
         visible: true
     });
 
@@ -184,8 +186,8 @@ function buildPrefsWidget() {
     addString(i++, 'Included categories (comma separated)', 'included-categories', prefsWidget, settings);
     addChoices(i++, 'Stats interval', 'stats-interval', prefsWidget, settings, ['current day', 'current week', 'current month']);
     addChoices(i++, 'Week start day', 'week-start-day', prefsWidget, settings, ['Monday' , 'Sunday']);
-    addString(i++, 'Log file path', 'log-file-path', prefsWidget, settings);
-    addString(i++, 'Categorize rules file path', 'categorize-file-path', prefsWidget, settings);
+    addString(i++, 'Log file full path', 'log-file-path', prefsWidget, settings);
+    addString(i++, 'Categorize rules file full path', 'categorize-file-path', prefsWidget, settings);
     
     // Return our widget which will be added to the window
  
