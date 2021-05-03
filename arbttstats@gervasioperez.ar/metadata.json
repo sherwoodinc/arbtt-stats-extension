@@ -4,5 +4,6 @@
   "uuid": "arbttstats@gervasioperez.ar",
   "shell-version": [
     "3.38", "40"
-  ]
+  ],
+  "url": "https://github.com/sherwoodinc/arbtt-stats-extension"
 }
