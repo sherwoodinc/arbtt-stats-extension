@@ -195,7 +195,9 @@ function buildPrefsWidget() {
       label: "Edit categorize file",
     });
     
-    prefsWidget._button_handler = button.connect("clicked", Me.imports.helpers.arbttlib.categories_file_open);
+    let file = settings.get_string("categorize-file-path");
+    let handler = function() { Me.imports.helpers.arbttlib.categories_file_open(file); };
+    prefsWidget._button_handler = button.connect("clicked", handler);
     prefsWidget.attach(button,0, i++, 2,1);
 
     // Return our widget which will be added to the window
