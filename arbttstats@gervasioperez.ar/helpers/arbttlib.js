@@ -51,18 +51,13 @@ const { Gio, GLib } = imports.gi;
 
  */
 
-function build_arbtt_command_line(settings) {
-  let cmdline = ["arbtt-stats", "--output-format=csv"];
-  try {    
-    let today = GLib.DateTime.new_now_local().format("\%F");
-    if (!settings.ignore_inactive) cmdline.push("--also-inactive");
-    if (settings.logs_path.length > 0) cmdline.push("--logfile=" + settings.logs_path);
-    if (settings.categorize_path.length > 0) cmdline.push("--categorizefile=" + settings.categorize_path);
+function runshell(cmd) {
+  return imports.byteArray.toString(
+    GLib.spawn_command_line_sync(cmd)[1]);
+}
 
-    for (let i = 0; i < settings.included_categories.length; ++i) cmdline.push("--category=" + settings.included_categories[i]);
-    if (settings.excluded_categories.length > 0)
-      for (let i = 0; i < settings.excluded_categories.length; ++i) cmdline.push("--exclude=" + settings.excluded_categories[i]);
-      
+ function build_date_filter(settings) {
+    let today = GLib.DateTime.new_now_local().format("\%F");
     switch (settings.stats_interval) {
       case "current day": break;
       case "current week":
@@ -78,14 +73,44 @@ function build_arbtt_command_line(settings) {
         today = today.format("\%F");
         break;
      };
-     
-     cmdline.push("--filter='$date>=" + today + "'");
-  } catch (e) { 
+
+     return "--filter='$date>=" + today + "'";
+}
+
+function build_arbtt_command_line(settings) {
+  let cmdline = ["arbtt-stats", "--output-format=csv"];
+  try {
+    if (!settings.ignore_inactive) cmdline.push("--also-inactive");
+    if (settings.logs_path.length > 0) cmdline.push("--logfile=" + settings.logs_path);
+    if (settings.categorize_path.length > 0) cmdline.push("--categorizefile=" + settings.categorize_path);
+
+    for (let i = 0; i < settings.included_categories.length; ++i) cmdline.push("--category=" + settings.included_categories[i]);
+    if (settings.excluded_categories.length > 0)
+      for (let i = 0; i < settings.excluded_categories.length; ++i) cmdline.push("--exclude=" + settings.excluded_categories[i]);
+
+     cmdline.push(build_date_filter(settings));
+  } catch (e) {
     log(e);
   }
-  
+
   return cmdline;
 }
+
+function build_arbtt_raw_entries_command_line(settings, tag) {
+  let cmdline = ["arbtt-stats", "--dump-samples"];
+  try {
+    if (!settings.ignore_inactive) cmdline.push("--also-inactive");
+    if (settings.logs_path.length > 0) cmdline.push("--logfile=" + settings.logs_path);
+    if (settings.categorize_path.length > 0) cmdline.push("--categorizefile=" + settings.categorize_path);
+    cmdline.push("--only=" + tag);
+    cmdline.push(build_date_filter(settings));
+  } catch (e) {
+    log(e);
+  }
+
+  return cmdline;
+}
+
 
 function parse_arbtt_csv_output(categories_csv) {
   let categories = [];
@@ -107,6 +132,7 @@ function parse_arbtt_csv_output(categories_csv) {
           v[categories_csv[0][j]] = categories_csv[i][j];
 
         let c = {
+          raw_tag: v["Tag"],
           tag: v["Tag"].split(":"),
           category: v["Tag"].split(":")[0],
           percentage: parseFloat(v["Percentage"]),
@@ -117,9 +143,9 @@ function parse_arbtt_csv_output(categories_csv) {
         c.time_minutes = c.time_hms[0] * 60 + c.time_hms[1];
         c.time_hm_str = (c.time_hms[0] > 0 ? c.time_hms[0].toString() + "h" : "") +
           (c.time_hms[1] > 0 ? c.time_hms[1].toString() + "m" : "");
-        categories.push(c);        
+        categories.push(c);
       }
-      
+
     }
   } catch (e) {
     // return empty category list on error
@@ -128,10 +154,74 @@ function parse_arbtt_csv_output(categories_csv) {
   return categories;
 }
 
+function parse_arbtt_raw_entries(raw_entries) {
+  function parse_line(st) {
+    let s = st.trim();
+    return [s.split(/[ ]+/).slice(0,3), s.split(":").slice(1,9999).join(":").trim()];
+  }
+
+  let entries = [];
+  try {
+    raw_entries = raw_entries.split("\n");
+    raw_entries.forEach( (l) => {
+    let line = parse_line(l);
+    if (line.length > 0 && line[0].length > 1 && line[0][1][0] == "(") {
+      let entry = {
+      // Line format example:
+      //      1     (*) gnome-terminal-server: sudo apt install glade
+      frequency: parseInt(line[0][0]),
+      active: line[0][1] == "(*)",
+      program: line[0][2].substr(0,line[0][2].length-1),
+      title: line[1]
+      }
+      entries.push(entry);
+      }
+    });
+
+  } catch (e) {
+    log (e);
+  }
+
+  return entries;
+}
+
 function read_arbtt_stats(settings) {
   let argv = build_arbtt_command_line(settings);
-  let categories_csv = imports.byteArray.toString(GLib.spawn_command_line_sync(argv.join(" "))[1]);
+  let categories_csv = runshell(argv.join(" "));
   let categories = parse_arbtt_csv_output(categories_csv);
   return categories;
+}
+
+function fetch_arbtt_entries_for_tag(settings, tag) {
+  if (settings.entries_to_fetch == 0) return [];
+
+  let argv = build_arbtt_raw_entries_command_line(settings, tag)
+  let raw_entries = runshell("bash -c \""+argv.join(" ") +
+       " | fgrep '(*)' | sort | uniq -c | sort --reverse --general-numeric-sort" +
+        (settings.events_to_fetch > 0 ? " | head -"+settings.events_to_fetch.toString() : "") + "\"");
+  return parse_arbtt_raw_entries(raw_entries);
+}
+
+function categories_file_open(file) {
+        if (file.length < 1) file = "~/.arbtt/categorize.cfg";
+        runshell("sh -c 'xdg-open " + file+"'");
+}
+
+function build_rule_templates_from_event(settings,event) {
+  rules = []
+  rules.push("-- Added by Arbtt-stats gnome extension");
+  rules.push("-- current window \\$program == \\\"" + event.program + "\\\" ==\\> tag CATEGORY:TAG_NAME,");
+  rules.push("-- current window \\$program =~ /.*" + event.program + ".*/ ==\\> CATEGORY:TAG_NAME,");
+  rules.push("-- current window \\$title == \\\"" + event.title + "\\\" ==\\> tag CATEGORY:TAG_NAME,");
+  rules.push("-- current window \\$title =~ /.*" + event.title + ".*/ ==\\> tag CATEGORY:TAG_NAME,");
+  // Append each commented rule template to the categories file
+  let file = settings.categorize_path.length > 0 ? settings.categorize_path : "~/.arbtt/categorize.cfg";
+  rules.forEach( (rule) => {
+    let cmd = "bash -c 'echo "+rule+" >> " + file+"'";
+    log(cmd)
+    runshell(cmd);
+  });
+
+  categories_file_open(settings.categorize_path);
 }
 

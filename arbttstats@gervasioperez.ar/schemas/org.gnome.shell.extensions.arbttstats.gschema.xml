@@ -38,5 +38,14 @@
     <key name="refresh-interval-seconds" type="i">
       <default>60</default>
     </key>
+    <key name="events-to-fetch" type="s">
+      <choices>
+        <choice value="1" />
+        <choice value="3" />
+        <choice value="5" />
+        <choice value="10" />
+      </choices>
+      <default>"5"</default>
+    </key>
   </schema>
 </schemalist>

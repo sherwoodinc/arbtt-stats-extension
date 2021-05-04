@@ -40,8 +40,7 @@ const PopupMenu = imports.ui.popupMenu;
 const CE = ExtensionUtils.getCurrentExtension();
 const extensionPath = CE.path;
 
-const Arbtt = CE.imports.arbtt;
-
+const Arbtt = CE.imports.helpers.arbttlib;
 const Lang = imports.lang;
 
 function log_status()
@@ -57,23 +56,20 @@ function log_status()
     return 0;
 }
 
-// A simple bar
 var PopupBarMenuItem = GObject.registerClass(
-    class PopupBarMenuItem extends PopupMenu.PopupBaseMenuItem {
-        _init(text, xwidth) {
+    class PopupBarMenuItem extends PopupMenu.PopupSubMenuMenuItem {
+        _init(settings,cat) {
+           let task = cat.tag;
+           if (!settings.strip_categories)
+              task = cat.raw_tag;
+
+            this._category = cat;
+            this._settings = settings;
+            let text = cat.time_hm_str + " -- "+task;
+            let xwidth = Math.floor(cat.percentage)*2;
+
+            super._init(text,false);
             
-            super._init({
-                style_class: 'popup-separator-menu-item',
-                reactive: false,
-                can_focus: false,
-            });
-    
-            this.label = new St.Label({ 
-                style_class: 'arbtt-stats',
-                text: text, 
-            });
-            this.label_actor = this.label;            
-        
             this._separator = new St.Widget({
                 style_class: 'arbtt-stats-progress-bar',
                 width: xwidth,
@@ -83,15 +79,41 @@ var PopupBarMenuItem = GObject.registerClass(
                 y_align: Clutter.ActorAlign.CENTER,
             });
             this.add_child(this._separator);
-            this.add_child(this.label_actor);
-            this.label.connect('notify::text', this._syncVisibility.bind(this));
-            this._syncVisibility();
 
+            // override menu open
+            let _open = this.menu.open.bind(this.menu);
+            let parent = this;
+            this.menu.open = function (activate) {
+               parent.get_events();
+              _open(activate);
+            }.bind(this.menu);
         }
-    
-        _syncVisibility() {
-            this.label.visible = this.label.text != '';
+
+        open(animate) {
+            log("Called open()");
+            if (this.menu.isEmpty())
+              this.get_events();
+            super.open(animate);
         }
+
+        get_events() {
+            log("Fetching events for " + this._category.raw_tag)
+            this.menu.removeAll();
+            let events = Arbtt.fetch_arbtt_entries_for_tag(this._settings, this._category.raw_tag);
+                events.forEach( (e) => {
+                  let item = new PopupMenu.PopupMenuItem("["+e.frequency.toString() + "] " + e.program + " -- " + e.title);
+                  item.connect("activate", function()
+                  {
+                    Arbtt.build_rule_templates_from_event(this._settings,e);
+                  }.bind(this) );
+                  this.menu.addMenuItem(item);
+                });
+            return true;
+         }
+
+         process_event(event) {
+
+         }
     });
     
 
@@ -105,7 +127,7 @@ class Indicator extends PanelMenu.Button {
     toggle_stats_interval() {
       this._parent.toggle_stats_interval();
     }
-    
+
     refresh(settings) {
         let categories =  Arbtt.read_arbtt_stats(settings);
         
@@ -129,12 +151,7 @@ class Indicator extends PanelMenu.Button {
         
         categories.forEach( (c) => {
            totalTime += c.time_minutes;  
-
-           let task = c.tag;
-           if (!settings.strip_categories) 
-              task = c.category + ":" + task;
-                    
-           let item = new PopupBarMenuItem(c.time_hm_str + " -- "+task, Math.floor(c.percentage)*2);
+           let item = new PopupBarMenuItem(settings,c);
            this.menu.addMenuItem(item);
           }        
         );
@@ -153,6 +170,17 @@ class Indicator extends PanelMenu.Button {
         item = new PopupMenu.PopupImageMenuItem("Configure", icon.gicon);
         item.connect("activate", this.open_prefs);
         this.menu.addMenuItem(item);
+
+        icon = new St.Icon({
+            icon_name: 'document-edit-symbolic',
+            style_class: 'system-status-icon',
+        }
+        );
+
+        item = new PopupMenu.PopupImageMenuItem("Edit categories", icon.gicon);
+        item.connect("activate", function () { Arbtt.categories_file_open(settings.categorize_path);});
+        this.menu.addMenuItem(item);
+
         } catch (e) {
           log(e);
         }
@@ -214,7 +242,8 @@ class Extension {
           included_categories: this.settings.get_string("included-categories"),
           excluded_categories: this.settings.get_string("excluded-categories"),
           stats_interval: this.settings.get_string("stats-interval"),          
-          week_start_day: this.settings.get_string("week-start-day")
+          week_start_day: this.settings.get_string("week-start-day"),
+          events_to_fetch: parseInt(this.settings.get_string("events-to-fetch")),
         };
         if (settings.included_categories.length > 0)
           settings.included_categories = settings.included_categories.split(",");

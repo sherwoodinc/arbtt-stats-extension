@@ -25,8 +25,11 @@
   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+//'use strict'
+
 const Gio = imports.gi.Gio;
 const Gtk = imports.gi.Gtk;
+const GLib = imports.gi.GLib;
 
 const ExtensionUtils = imports.misc.extensionUtils;
 const Me = ExtensionUtils.getCurrentExtension();
@@ -162,7 +165,6 @@ function buildPrefsWidget() {
 
     // Create a parent widget that we'll return from this function
     let prefsWidget = new Gtk.Grid({
-        border_width: 12,
         column_spacing: 12,
         row_spacing: 12,
         hexpand: true,
@@ -180,6 +182,7 @@ function buildPrefsWidget() {
 
     let i = 1;
     addInteger(i++, 'Refresh interval (s)', 'refresh-interval-seconds', prefsWidget, settings);
+    addChoices(i++, 'Number of top events to show', 'events-to-fetch', prefsWidget, settings, ["1", "3", "5", "10"]);
     addBoolean(i++, 'Strip category name from tags', 'strip-category-names', prefsWidget, settings);
     addBoolean(i++, 'Ignore inactive entries', 'ignore-inactive', prefsWidget, settings);
     addString(i++, 'Excluded categories (comma separated)', 'excluded-categories', prefsWidget, settings);
@@ -188,8 +191,13 @@ function buildPrefsWidget() {
     addChoices(i++, 'Week start day', 'week-start-day', prefsWidget, settings, ['Monday' , 'Sunday']);
     addString(i++, 'Log file full path', 'log-file-path', prefsWidget, settings);
     addString(i++, 'Categorize rules file full path', 'categorize-file-path', prefsWidget, settings);
+    let button = new Gtk.Button({
+      label: "Edit categorize file",
+    });
     
+    prefsWidget._button_handler = button.connect("clicked", Me.imports.helpers.arbttlib.categories_file_open);
+    prefsWidget.attach(button,0, i++, 2,1);
+
     // Return our widget which will be added to the window
- 
     return prefsWidget;
 }
