@@ -131,6 +131,11 @@ function parse_arbtt_csv_output(categories_csv) {
         for (let j = 0; j < categories_csv[0].length; ++j)
           v[categories_csv[0][j]] = categories_csv[i][j];
 
+        if (!v["Tag"]) continue;
+        if (v["Tag"] == "(unmatched time)") continue;
+        if (v["Tag"] == "(total time)") continue;
+        if (v["Tag"].match(/[0-9]+ entries omitted/)) continue;
+
         let c = {
           raw_tag: v["Tag"],
           tag: v["Tag"].split(":"),
