@@ -51,10 +51,58 @@ const { Gio, GLib } = imports.gi;
 
  */
 
-function runshell(cmd) {
-  return imports.byteArray.toString(
-    GLib.spawn_command_line_sync(cmd)[1]);
+async function execCommunicate(argv, input = null, cancellable = null) {
+  let cancelId = 0;
+  let flags = (Gio.SubprocessFlags.STDOUT_PIPE);// |
+                //Gio.SubprocessFlags.STDERR_PIPE);
+
+  if (input !== null)
+      flags |= Gio.SubprocessFlags.STDIN_PIPE;
+
+  let proc = new Gio.Subprocess({
+      argv: argv,
+      flags: flags
+  });
+  proc.init(cancellable);
+
+  if (cancellable instanceof Gio.Cancellable) {
+      cancelId = cancellable.connect(() => proc.force_exit());
+  }
+
+  return new Promise((resolve, reject) => {
+      proc.communicate_utf8_async(input, null, (proc, res) => {
+          try {
+              let [, stdout, stderr] = proc.communicate_utf8_finish(res);
+              let status = proc.get_exit_status();
+
+              if (status !== 0) {
+                  throw new Gio.IOErrorEnum({
+                      code: Gio.io_error_from_errno(status),
+                      message: stderr ? stderr.trim() : GLib.strerror(status)
+                  });
+              }
+
+              resolve(stdout.trim());
+          } catch (e) {
+              reject(e);
+          } finally {
+              if (cancelId > 0) {
+                  cancellable.disconnect(cancelId);
+              }
+          }
+      });
+  });
 }
+
+async function runshell(cmd, stdinput = null) {  
+  let output = await execCommunicate(cmd, input = stdinput);
+  return output;
+}
+
+function runshell_sync(cmd) {
+    return imports.byteArray.toString(GLib.spawn_command_line_sync(cmd)[1]);
+  }
+
 
  function build_date_filter(settings) {
     let today = GLib.DateTime.new_now_local().format("\%F");
@@ -74,7 +122,7 @@ function runshell(cmd) {
         break;
      };
 
-     return "--filter='$date>=" + today + "'";
+     return "--filter=$date>=" + today + "";
 }
 
 function build_arbtt_command_line(settings) {
@@ -87,8 +135,8 @@ function build_arbtt_command_line(settings) {
     for (let i = 0; i < settings.included_categories.length; ++i) cmdline.push("--category=" + settings.included_categories[i]);
     if (settings.excluded_categories.length > 0)
       for (let i = 0; i < settings.excluded_categories.length; ++i) cmdline.push("--exclude=" + settings.excluded_categories[i]);
-
      cmdline.push(build_date_filter(settings));
+     
   } catch (e) {
     log(e);
   }
@@ -190,26 +238,39 @@ function parse_arbtt_raw_entries(raw_entries) {
   return entries;
 }
 
-function read_arbtt_stats(settings) {
-  let argv = build_arbtt_command_line(settings);
-  let categories_csv = runshell(argv.join(" "));
-  let categories = parse_arbtt_csv_output(categories_csv);
-  return categories;
+async function read_arbtt_stats(settings) {
+  return new Promise((resolve, reject) => {
+    try{
+    let argv = build_arbtt_command_line(settings);
+    log("Running command: " + argv.toString());
+    execCommunicate(argv).then( (categories_csv) => {
+    let categories = parse_arbtt_csv_output(categories_csv);
+    resolve(categories);
+    });
+    } catch (e) {
+      reject(e);
+    }
+  });
 }
 
-function fetch_arbtt_entries_for_tag(settings, tag) {
+async function fetch_arbtt_entries_for_tag(settings, tag) {
   if (settings.entries_to_fetch == 0) return [];
 
-  let argv = build_arbtt_raw_entries_command_line(settings, tag)
-  let raw_entries = runshell("bash -c \""+argv.join(" ") +
-       " | fgrep '(*)' | sort | uniq -c | sort --reverse --general-numeric-sort" +
-        (settings.events_to_fetch > 0 ? " | head -"+settings.events_to_fetch.toString() : "") + "\"");
-  return parse_arbtt_raw_entries(raw_entries);
+  let argv = build_arbtt_raw_entries_command_line(settings, tag);
+  output1 = await runshell(argv);
+  output2 = await runshell(["fgrep","(*)"], output1);
+  output3 = await runshell(["sort"], output2);
+  output4 = await runshell(["uniq","-c"], output3);
+  output5 = await runshell(["sort","--reverse","--general-numeric-sort"], output4);
+  if (settings.events_to_fetch > 0) {
+    output5 = output5.split("\n").slice(0,settings.events_to_fetch).join("\n");            
+  }  
+  return parse_arbtt_raw_entries(output5);        
 }
 
 function categories_file_open(file) {
         if (file.length < 1) file = "~/.arbtt/categorize.cfg";
-        runshell("sh -c 'xdg-open " + file+"'");
+        runshell_sync("sh -c 'xdg-open " + file+"'");
 }
 
 function build_rule_templates_from_event(settings,event) {
@@ -224,7 +285,7 @@ function build_rule_templates_from_event(settings,event) {
   rules.forEach( (rule) => {
     let cmd = "bash -c 'echo "+rule+" >> " + file+"'";
     log(cmd)
-    runshell(cmd);
+    runshell_sync(cmd);
   });
 
   categories_file_open(settings.categorize_path);
