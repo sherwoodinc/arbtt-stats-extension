@@ -104,7 +104,6 @@ var PopupBarMenuItem = GObject.registerClass(
         this._category.raw_tag
       ).then((events) => {
         events.forEach((e) => {
-          log(e.title);
           let item = new PopupMenu.PopupMenuItem(
             "[" + e.frequency.toString() + "] " + e.program + " -- " + e.title
           );
@@ -134,12 +133,16 @@ const Indicator = GObject.registerClass(
     }
 
     toggle_stats_interval() {
+      this._item.add_child(new St.Icon({
+        icon_name: "emblem-synchronizing-symbolic",
+        style_class: "system-status-icon",
+        icon_size: 16
+      }));
       this._parent.toggle_stats_interval();
     }
 
     refresh(settings) {
       Arbtt.read_arbtt_stats(settings).then((categories) => {
-
       this.menu.removeAll();
       try {
         let totalTime = 0;
@@ -154,17 +157,16 @@ const Indicator = GObject.registerClass(
         }
 
         let icon = new St.Icon({
-          icon_name: "emblem-synchronizing-symbolic",
+          icon_name: "x-office-calendar-symbolic",
           style_class: "system-status-icon",
         });
-        let item = new PopupMenu.PopupImageMenuItem(interval_text, icon.gicon);
-        item.connect("activate", Lang.bind(this, this.toggle_stats_interval));
-        this.menu.addMenuItem(item);
+        this._item = new PopupMenu.PopupImageMenuItem(interval_text, icon.gicon);
+        this._item.activate = Lang.bind(this, this.toggle_stats_interval);        
+        this.menu.addMenuItem(this._item);
 
         categories.forEach((c) => {
           totalTime += c.time_minutes;
           let item = new PopupBarMenuItem(settings, c);
-          //item.get_events();
           this.menu.addMenuItem(item);
         });
 
@@ -173,7 +175,7 @@ const Indicator = GObject.registerClass(
           (totalTime % 60).toString() +
           "m";
 
-        item = new PopupMenu.PopupMenuItem("Logged time: " + totalTime);
+        let item = new PopupMenu.PopupMenuItem("Logged time: " + totalTime);
         this.menu.addMenuItem(item, 1);
 
         icon = new St.Icon({
