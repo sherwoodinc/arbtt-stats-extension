@@ -311,6 +311,7 @@ class Extension {
   disable() {
     if (this.timer) GLib.source_remove(this.timer);
     this.timer = null;
+    this.settings = null;
     if (this._indicator) this._indicator.destroy();
     this._indicator = null;
   }
