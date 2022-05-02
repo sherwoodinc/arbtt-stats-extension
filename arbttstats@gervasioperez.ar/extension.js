@@ -41,7 +41,6 @@ const CE = ExtensionUtils.getCurrentExtension();
 const extensionPath = CE.path;
 
 const Arbtt = CE.imports.helpers.arbttlib;
-const Lang = imports.lang;
 
 function log_status() {
   logfile = Gio.file_new_for_path(
@@ -161,7 +160,7 @@ const Indicator = GObject.registerClass(
           style_class: "system-status-icon",
         });
         this._item = new PopupMenu.PopupImageMenuItem(interval_text, icon.gicon);
-        this._item.activate = Lang.bind(this, this.toggle_stats_interval);        
+        this._item.activate = this.toggle_stats_interval.bind(this);
         this.menu.addMenuItem(this._item);
 
         categories.forEach((c) => {
@@ -222,14 +221,15 @@ class Extension {
   constructor(uuid) {
     this._uuid = uuid;
     this.timer = null;
-    this.settings = ExtensionUtils.getSettings(
-      "org.gnome.shell.extensions.arbttstats"
-    );
+    this._busy = false;
     ExtensionUtils.initTranslations(GETTEXT_DOMAIN);
   }
 
+  busy() { return this._busy; }
+
   async toggle_stats_interval() {
-    try {
+    this._busy = true;
+    try {      
       let result = "";
       switch (this.settings.get_string("stats-interval")) {
         case "current day":
@@ -243,10 +243,11 @@ class Extension {
           break;
       }
       this.settings.set_string("stats-interval", result);
-      this.refresh();
+      this.refresh();      
     } catch (e) {
       log(e);
     }
+    this._busy = false;
   }
 
   /* Async refresh method to call in sdsdddddddd */
@@ -256,6 +257,7 @@ class Extension {
 
   /* Main refresh method is synchronous to support active toggling of stat intervals */
   refresh() {
+    this._busy = true;
     log_status("Refreshing arbtt stats...");
     try {
       var settings = {
@@ -283,18 +285,22 @@ class Extension {
       this.timer = GLib.timeout_add(
         GLib.PRIORITY_DEFAULT,
         settings.interval * 1000,
-        imports.lang.bind(this, async function () {
+        async function () {
           this._update();
           return true;
-        })
-      );
+        }.bind(this));
     } catch (e) {
       //
       log(e);
     }
+    this._busy = false;
   }
 
   enable() {
+    this.settings = ExtensionUtils.getSettings(
+      "org.gnome.shell.extensions.arbttstats"
+    );
+
     if (!this._indicator) {
       this._indicator = new Indicator(this);
       Main.panel.addToStatusArea(this._uuid, this._indicator);

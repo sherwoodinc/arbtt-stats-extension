@@ -4,9 +4,10 @@
   "name": "Arbtt stats",
   "shell-version": [
     "3.38",
-    "40"
+    "40",
+    "42"
   ],
   "url": "https://github.com/sherwoodinc/arbtt-stats-extension",
   "uuid": "arbttstats@gervasioperez.ar",
-  "version": 9
+  "version": 10
 }

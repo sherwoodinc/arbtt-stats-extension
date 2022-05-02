@@ -28,29 +28,6 @@
 const Gettext = imports.gettext;
 const { Gio, GLib } = imports.gi;
 
-/* arbtt-stats options -- for self reference
--h, -?       --help                  show this help
--V           --version               show the version number
-            --logfile=FILE          use this file instead of ~/.arbtt/capture.log
-            --categorizefile=FILE   use this file instead of ~/.arbtt/categorize.cfg
--x TAG       --exclude=TAG           ignore samples containing this tag or category
--o TAG       --only=TAG              only consider samples containing this tag or category
-            --also-inactive         include samples with the tag "inactive"
--f COND      --filter=COND           only consider samples matching the condition
--m PERC      --min-percentage=PERC   do not show tags with a percentage lower than PERC% (default: 1)
-            --output-exclude=TAG    remove these tags from the output
-            --output-only=TAG       only include these tags in the output
--i           --information           show general statistics about the data
--t           --total-time            show total time for each tag
--c CATEGORY  --category=CATEGORY     show statistics about category CATEGORY
-            --each-category         show statistics about each category found
-            --intervals=TAG         list intervals of tag or category TAG
-            --dump-samples          Dump the raw samples and tags.
-            --output-format=FORMAT  one of: text, csv (comma-separated values), tsv (TAB-separated values) (default: Text)
-            --for-each=PERIOD       one of: day, month, year
-
- */
-
 async function execCommunicate(argv, input = null, cancellable = null) {
   let cancelId = 0;
   let flags = (Gio.SubprocessFlags.STDOUT_PIPE);// |
@@ -93,6 +70,32 @@ async function execCommunicate(argv, input = null, cancellable = null) {
       });
   });
 }
+
+
+/* arbtt-stats options -- for self reference
+-h, -?       --help                  show this help
+-V           --version               show the version number
+            --logfile=FILE          use this file instead of ~/.arbtt/capture.log
+            --categorizefile=FILE   use this file instead of ~/.arbtt/categorize.cfg
+-x TAG       --exclude=TAG           ignore samples containing this tag or category
+-o TAG       --only=TAG              only consider samples containing this tag or category
+            --also-inactive         include samples with the tag "inactive"
+-f COND      --filter=COND           only consider samples matching the condition
+-m PERC      --min-percentage=PERC   do not show tags with a percentage lower than PERC% (default: 1)
+            --output-exclude=TAG    remove these tags from the output
+            --output-only=TAG       only include these tags in the output
+-i           --information           show general statistics about the data
+-t           --total-time            show total time for each tag
+-c CATEGORY  --category=CATEGORY     show statistics about category CATEGORY
+            --each-category         show statistics about each category found
+            --intervals=TAG         list intervals of tag or category TAG
+            --dump-samples          Dump the raw samples and tags.
+            --output-format=FORMAT  one of: text, csv (comma-separated values), tsv (TAB-separated values) (default: Text)
+            --for-each=PERIOD       one of: day, month, year
+
+ */
+
+
 
 async function runshell(cmd, stdinput = null) {  
   let output = await execCommunicate(cmd, input = stdinput);
@@ -291,3 +294,6 @@ function build_rule_templates_from_event(settings,event) {
   categories_file_open(settings.categorize_path);
 }
 
+function get_arbtt_version() {
+  return GLib.spawn_command_line_sync("arbtt-stats --version");
+}
